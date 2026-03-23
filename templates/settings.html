@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Settings – MailMind{% endblock %}
+
+{% block content %}
+<h2 class="mb-3">Settings</h2>
+
+<div class="row">
+  <div class="col-md-6 mb-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Microsoft 365 / Outlook</h5>
+        <hr>
+        {% if ms_accounts %}
+          {% for account in ms_accounts %}
+            <p class="mb-1"><strong>{{ account.display_name or account.email_address }}</strong></p>
+            <p class="text-muted small">{{ account.email_address }}</p>
+          {% endfor %}
+        {% else %}
+          <p class="text-muted">No accounts connected.</p>
+        {% endif %}
+        <a href="#" class="btn btn-primary mt-2">Connect Account</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6 mb-4">
+    <div class="card h-100">
+      <div class="card-body">
+        <h5 class="card-title">Gmail</h5>
+        <hr>
+        {% if google_accounts %}
+          {% for account in google_accounts %}
+            <p class="mb-1"><strong>{{ account.display_name or account.email_address }}</strong></p>
+            <p class="text-muted small">{{ account.email_address }}</p>
+          {% endfor %}
+        {% else %}
+          <p class="text-muted">No accounts connected.</p>
+        {% endif %}
+        <a href="#" class="btn btn-primary mt-2">Connect Account</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

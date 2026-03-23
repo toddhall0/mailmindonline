@@ -1,0 +1,11 @@
+flask
+anthropic
+msal
+google-auth
+google-auth-oauthlib
+google-api-python-client
+apscheduler
+python-dotenv
+python-dateutil
+requests
+werkzeug

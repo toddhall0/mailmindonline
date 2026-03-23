@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Tasks – MailMind{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h2>Tasks</h2>
+</div>
+
+<div class="row mb-3 g-2">
+  <div class="col-auto">
+    <select id="filterStatus" class="form-select form-select-sm" onchange="filterTasks()">
+      <option value="">All Statuses</option>
+      <option value="Open">Open</option>
+      <option value="In Progress">In Progress</option>
+      <option value="Done">Done</option>
+      <option value="Cancelled">Cancelled</option>
+    </select>
+  </div>
+  <div class="col-auto">
+    <select id="filterPriority" class="form-select form-select-sm" onchange="filterTasks()">
+      <option value="">All Priorities</option>
+      <option value="High">High</option>
+      <option value="Medium">Medium</option>
+      <option value="Low">Low</option>
+    </select>
+  </div>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-striped table-hover" id="taskTable">
+    <thead class="table-light">
+      <tr>
+        <th>Title</th>
+        <th>Priority</th>
+        <th>Status</th>
+        <th>Due Date</th>
+        <th>Tags</th>
+        <th>Source</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for task in tasks %}
+      <tr data-status="{{ task.status }}" data-priority="{{ task.priority }}">
+        <td>{{ task.title }}</td>
+        <td>
+          <span class="badge bg-{{ 'danger' if task.priority == 'High' else 'warning text-dark' if task.priority == 'Medium' else 'secondary' }}">
+            {{ task.priority }}
+          </span>
+        </td>
+        <td>{{ task.status }}</td>
+        <td>{{ task.due_date or '—' }}</td>
+        <td>{{ task.tags or '—' }}</td>
+        <td>{{ task.source_account_type or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr id="emptyRow">
+        <td colspan="6" class="text-center text-muted py-4">
+          No tasks yet. Connect an email account in Settings to get started.
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+function filterTasks() {
+  const status = document.getElementById('filterStatus').value;
+  const priority = document.getElementById('filterPriority').value;
+  const rows = document.querySelectorAll('#taskTable tbody tr[data-status]');
+  rows.forEach(row => {
+    const matchStatus = !status || row.dataset.status === status;
+    const matchPriority = !priority || row.dataset.priority === priority;
+    row.style.display = (matchStatus && matchPriority) ? '' : 'none';
+  });
+}
+</script>
+{% endblock %}
