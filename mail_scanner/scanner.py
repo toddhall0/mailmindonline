@@ -1,11 +1,7 @@
 from database import get_db
 from mail_scanner.microsoft_scanner import scan_microsoft_account
 from mail_scanner.gmail_scanner import scan_gmail_account
-
-
-def process_email(email_id):
-    """Placeholder – Claude AI processing will be implemented in Phase 4."""
-    pass
+from ai.task_extractor import process_email
 
 
 def scan_all_accounts():
@@ -22,7 +18,7 @@ def scan_all_accounts():
         elif account["account_type"] == "google":
             scan_gmail_account(account["id"])
 
-    # Process any unprocessed emails
+    # Process any unprocessed emails with Claude AI
     db = get_db()
     unprocessed = db.execute(
         "SELECT id FROM scanned_emails WHERE was_processed = 0"
