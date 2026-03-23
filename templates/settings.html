@@ -12,13 +12,44 @@
         <hr>
         {% if ms_accounts %}
           {% for account in ms_accounts %}
-            <p class="mb-1"><strong>{{ account.display_name or account.email_address }}</strong></p>
-            <p class="text-muted small">{{ account.email_address }}</p>
+          <div class="border rounded p-3 mb-3">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <strong>{{ account.display_name or account.email_address }}</strong>
+                <br><span class="text-muted small">{{ account.email_address }}</span>
+                <br>
+                <span class="text-muted small">
+                  Last scanned:
+                  {% if account.last_scan_at %}
+                    {{ account.last_scan_at }}
+                  {% else %}
+                    Never
+                  {% endif %}
+                </span>
+              </div>
+              <form action="/auth/microsoft/disconnect/{{ account.id }}" method="post">
+                <button type="submit" class="btn btn-outline-danger btn-sm"
+                        onclick="return confirm('Disconnect this account?')">
+                  Disconnect
+                </button>
+              </form>
+            </div>
+
+            <hr class="my-2">
+            <label class="form-label small fw-bold">Folders to scan:</label>
+            <div id="folders-{{ account.id }}">
+              <p class="text-muted small mb-1">Loading folders...</p>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary mt-1"
+                    onclick="loadFolders({{ account.id }})">
+              Refresh Folders
+            </button>
+          </div>
           {% endfor %}
         {% else %}
           <p class="text-muted">No accounts connected.</p>
         {% endif %}
-        <a href="#" class="btn btn-primary mt-2">Connect Account</a>
+        <a href="/auth/microsoft/connect" class="btn btn-primary mt-2">Connect Account</a>
       </div>
     </div>
   </div>
@@ -30,8 +61,14 @@
         <hr>
         {% if google_accounts %}
           {% for account in google_accounts %}
-            <p class="mb-1"><strong>{{ account.display_name or account.email_address }}</strong></p>
-            <p class="text-muted small">{{ account.email_address }}</p>
+          <div class="border rounded p-3 mb-3">
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <strong>{{ account.display_name or account.email_address }}</strong>
+                <br><span class="text-muted small">{{ account.email_address }}</span>
+              </div>
+            </div>
+          </div>
           {% endfor %}
         {% else %}
           <p class="text-muted">No accounts connected.</p>
@@ -41,4 +78,66 @@
     </div>
   </div>
 </div>
+
+<script>
+// Auto-load folders for each connected Microsoft account
+document.addEventListener('DOMContentLoaded', function() {
+  {% for account in ms_accounts %}
+  loadFolders({{ account.id }});
+  {% endfor %}
+});
+
+function loadFolders(accountId) {
+  const container = document.getElementById('folders-' + accountId);
+  container.innerHTML = '<p class="text-muted small mb-1">Loading folders...</p>';
+
+  fetch('/api/microsoft/folders/' + accountId)
+    .then(r => r.json())
+    .then(folders => {
+      if (folders.length === 0) {
+        container.innerHTML = '<p class="text-muted small">No folders found.</p>';
+        return;
+      }
+      let html = '<div class="d-flex flex-wrap gap-1">';
+      folders.forEach(f => {
+        html += `
+          <div class="form-check">
+            <input class="form-check-input folder-check-${accountId}" type="checkbox"
+                   value="${f.displayName}" id="folder-${accountId}-${f.id}"
+                   onchange="saveFolders(${accountId})">
+            <label class="form-check-label small" for="folder-${accountId}-${f.id}">
+              ${f.displayName} (${f.totalItemCount})
+            </label>
+          </div>`;
+      });
+      html += '</div>';
+      container.innerHTML = html;
+
+      // Check currently selected folders
+      fetch('/api/microsoft/folders/' + accountId)
+        .then(() => {
+          // Default: check Inbox
+          const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+          checkboxes.forEach(cb => {
+            if (cb.value === 'Inbox') cb.checked = true;
+          });
+        });
+    })
+    .catch(() => {
+      container.innerHTML = '<p class="text-danger small">Failed to load folders.</p>';
+    });
+}
+
+function saveFolders(accountId) {
+  const checkboxes = document.querySelectorAll('.folder-check-' + accountId + ':checked');
+  const folders = Array.from(checkboxes).map(cb => cb.value);
+  if (folders.length === 0) folders.push('Inbox');
+
+  fetch('/api/microsoft/folders/' + accountId + '/save', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({folders: folders})
+  });
+}
+</script>
 {% endblock %}

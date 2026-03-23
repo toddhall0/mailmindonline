@@ -1,27 +1,26 @@
-from flask import Flask, render_template, flash, Blueprint
+import json
+
+from flask import Flask, render_template, flash, jsonify, request, Blueprint
 from apscheduler.schedulers.background import BackgroundScheduler
+
 import config
 from database import init_db, get_db
+from auth.microsoft import microsoft_auth_bp
+from mail_scanner.microsoft_scanner import get_microsoft_folders
+from mail_scanner.scanner import scan_all_accounts
 
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
+init_db()
 
 # ---------------------------------------------------------------------------
-# Blueprint placeholders
+# Blueprints
 # ---------------------------------------------------------------------------
-auth_bp = Blueprint("auth", __name__, url_prefix="/auth")
-email_bp = Blueprint("email", __name__, url_prefix="/email")
+app.register_blueprint(microsoft_auth_bp)
 
-app.register_blueprint(auth_bp)
-app.register_blueprint(email_bp)
-
-# ---------------------------------------------------------------------------
-# Placeholder scan function
-# ---------------------------------------------------------------------------
-
-def scan_emails():
-    """Placeholder – will be implemented in a later phase."""
-    pass
+# Placeholder for future Google auth
+google_auth_bp = Blueprint("google_auth", __name__, url_prefix="/auth/google")
+app.register_blueprint(google_auth_bp)
 
 # ---------------------------------------------------------------------------
 # Routes
@@ -49,16 +48,35 @@ def settings():
 def health():
     return {"status": "ok"}
 
+
+@app.route("/api/microsoft/folders/<int:account_id>")
+def microsoft_folders(account_id):
+    folders = get_microsoft_folders(account_id)
+    return jsonify(folders)
+
+
+@app.route("/api/microsoft/folders/<int:account_id>/save", methods=["POST"])
+def save_microsoft_folders(account_id):
+    data = request.get_json()
+    folders = data.get("folders", ["Inbox"])
+    db = get_db()
+    db.execute(
+        "UPDATE email_accounts SET folders_to_scan = ? WHERE id = ? AND account_type = 'microsoft'",
+        (json.dumps(folders), account_id),
+    )
+    db.commit()
+    db.close()
+    return jsonify({"status": "ok"})
+
+
 # ---------------------------------------------------------------------------
 # Startup
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    init_db()
-
     scheduler = BackgroundScheduler()
     scheduler.add_job(
-        scan_emails,
+        scan_all_accounts,
         "interval",
         minutes=config.SCAN_INTERVAL_MINUTES,
         id="email_scan",
