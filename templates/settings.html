@@ -37,11 +37,11 @@
 
             <hr class="my-2">
             <label class="form-label small fw-bold">Folders to scan:</label>
-            <div id="folders-{{ account.id }}">
+            <div id="ms-folders-{{ account.id }}">
               <p class="text-muted small mb-1">Loading folders...</p>
             </div>
             <button class="btn btn-sm btn-outline-secondary mt-1"
-                    onclick="loadFolders({{ account.id }})">
+                    onclick="loadMsFolders({{ account.id }})">
               Refresh Folders
             </button>
           </div>
@@ -66,29 +66,59 @@
               <div>
                 <strong>{{ account.display_name or account.email_address }}</strong>
                 <br><span class="text-muted small">{{ account.email_address }}</span>
+                <br>
+                <span class="text-muted small">
+                  Last scanned:
+                  {% if account.last_scan_at %}
+                    {{ account.last_scan_at }}
+                  {% else %}
+                    Never
+                  {% endif %}
+                </span>
               </div>
+              <form action="/auth/google/disconnect/{{ account.id }}" method="post">
+                <button type="submit" class="btn btn-outline-danger btn-sm"
+                        onclick="return confirm('Disconnect this account?')">
+                  Disconnect
+                </button>
+              </form>
             </div>
+
+            <hr class="my-2">
+            <label class="form-label small fw-bold">Labels to scan:</label>
+            <div id="gmail-labels-{{ account.id }}">
+              <p class="text-muted small mb-1">Loading labels...</p>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary mt-1"
+                    onclick="loadGmailLabels({{ account.id }})">
+              Refresh Labels
+            </button>
           </div>
           {% endfor %}
         {% else %}
           <p class="text-muted">No accounts connected.</p>
         {% endif %}
-        <a href="#" class="btn btn-primary mt-2">Connect Account</a>
+        <a href="/auth/google/connect" class="btn btn-primary mt-2">Connect Account</a>
       </div>
     </div>
   </div>
 </div>
 
 <script>
-// Auto-load folders for each connected Microsoft account
+// Auto-load folders/labels for connected accounts on page load
 document.addEventListener('DOMContentLoaded', function() {
   {% for account in ms_accounts %}
-  loadFolders({{ account.id }});
+  loadMsFolders({{ account.id }});
+  {% endfor %}
+  {% for account in google_accounts %}
+  loadGmailLabels({{ account.id }});
   {% endfor %}
 });
 
-function loadFolders(accountId) {
-  const container = document.getElementById('folders-' + accountId);
+// --- Microsoft Folders ---
+
+function loadMsFolders(accountId) {
+  const container = document.getElementById('ms-folders-' + accountId);
   container.innerHTML = '<p class="text-muted small mb-1">Loading folders...</p>';
 
   fetch('/api/microsoft/folders/' + accountId)
@@ -102,10 +132,10 @@ function loadFolders(accountId) {
       folders.forEach(f => {
         html += `
           <div class="form-check">
-            <input class="form-check-input folder-check-${accountId}" type="checkbox"
-                   value="${f.displayName}" id="folder-${accountId}-${f.id}"
-                   onchange="saveFolders(${accountId})">
-            <label class="form-check-label small" for="folder-${accountId}-${f.id}">
+            <input class="form-check-input ms-folder-check-${accountId}" type="checkbox"
+                   value="${f.displayName}" id="ms-folder-${accountId}-${f.id}"
+                   onchange="saveMsFolders(${accountId})">
+            <label class="form-check-label small" for="ms-folder-${accountId}-${f.id}">
               ${f.displayName} (${f.totalItemCount})
             </label>
           </div>`;
@@ -113,23 +143,19 @@ function loadFolders(accountId) {
       html += '</div>';
       container.innerHTML = html;
 
-      // Check currently selected folders
-      fetch('/api/microsoft/folders/' + accountId)
-        .then(() => {
-          // Default: check Inbox
-          const checkboxes = container.querySelectorAll('input[type="checkbox"]');
-          checkboxes.forEach(cb => {
-            if (cb.value === 'Inbox') cb.checked = true;
-          });
-        });
+      // Default: check Inbox
+      const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+      checkboxes.forEach(cb => {
+        if (cb.value === 'Inbox') cb.checked = true;
+      });
     })
     .catch(() => {
       container.innerHTML = '<p class="text-danger small">Failed to load folders.</p>';
     });
 }
 
-function saveFolders(accountId) {
-  const checkboxes = document.querySelectorAll('.folder-check-' + accountId + ':checked');
+function saveMsFolders(accountId) {
+  const checkboxes = document.querySelectorAll('.ms-folder-check-' + accountId + ':checked');
   const folders = Array.from(checkboxes).map(cb => cb.value);
   if (folders.length === 0) folders.push('Inbox');
 
@@ -137,6 +163,57 @@ function saveFolders(accountId) {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({folders: folders})
+  });
+}
+
+// --- Gmail Labels ---
+
+function loadGmailLabels(accountId) {
+  const container = document.getElementById('gmail-labels-' + accountId);
+  container.innerHTML = '<p class="text-muted small mb-1">Loading labels...</p>';
+
+  fetch('/api/google/labels/' + accountId)
+    .then(r => r.json())
+    .then(labels => {
+      if (labels.length === 0) {
+        container.innerHTML = '<p class="text-muted small">No labels found.</p>';
+        return;
+      }
+      let html = '<div class="d-flex flex-wrap gap-1">';
+      labels.forEach(l => {
+        html += `
+          <div class="form-check">
+            <input class="form-check-input gmail-label-check-${accountId}" type="checkbox"
+                   value="${l.id}" id="gmail-label-${accountId}-${l.id}"
+                   onchange="saveGmailLabels(${accountId})">
+            <label class="form-check-label small" for="gmail-label-${accountId}-${l.id}">
+              ${l.name}
+            </label>
+          </div>`;
+      });
+      html += '</div>';
+      container.innerHTML = html;
+
+      // Default: check INBOX
+      const checkboxes = container.querySelectorAll('input[type="checkbox"]');
+      checkboxes.forEach(cb => {
+        if (cb.value === 'INBOX') cb.checked = true;
+      });
+    })
+    .catch(() => {
+      container.innerHTML = '<p class="text-danger small">Failed to load labels.</p>';
+    });
+}
+
+function saveGmailLabels(accountId) {
+  const checkboxes = document.querySelectorAll('.gmail-label-check-' + accountId + ':checked');
+  const labels = Array.from(checkboxes).map(cb => cb.value);
+  if (labels.length === 0) labels.push('INBOX');
+
+  fetch('/api/google/labels/' + accountId + '/save', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({labels: labels})
   });
 }
 </script>

@@ -1,12 +1,14 @@
 import json
 
-from flask import Flask, render_template, flash, jsonify, request, Blueprint
+from flask import Flask, render_template, flash, jsonify, request
 from apscheduler.schedulers.background import BackgroundScheduler
 
 import config
 from database import init_db, get_db
 from auth.microsoft import microsoft_auth_bp
+from auth.google import google_auth_bp
 from mail_scanner.microsoft_scanner import get_microsoft_folders
+from mail_scanner.gmail_scanner import get_gmail_labels
 from mail_scanner.scanner import scan_all_accounts
 
 app = Flask(__name__)
@@ -17,9 +19,6 @@ init_db()
 # Blueprints
 # ---------------------------------------------------------------------------
 app.register_blueprint(microsoft_auth_bp)
-
-# Placeholder for future Google auth
-google_auth_bp = Blueprint("google_auth", __name__, url_prefix="/auth/google")
 app.register_blueprint(google_auth_bp)
 
 # ---------------------------------------------------------------------------
@@ -49,6 +48,7 @@ def health():
     return {"status": "ok"}
 
 
+# Microsoft folder APIs
 @app.route("/api/microsoft/folders/<int:account_id>")
 def microsoft_folders(account_id):
     folders = get_microsoft_folders(account_id)
@@ -63,6 +63,27 @@ def save_microsoft_folders(account_id):
     db.execute(
         "UPDATE email_accounts SET folders_to_scan = ? WHERE id = ? AND account_type = 'microsoft'",
         (json.dumps(folders), account_id),
+    )
+    db.commit()
+    db.close()
+    return jsonify({"status": "ok"})
+
+
+# Google label APIs
+@app.route("/api/google/labels/<int:account_id>")
+def google_labels(account_id):
+    labels = get_gmail_labels(account_id)
+    return jsonify(labels)
+
+
+@app.route("/api/google/labels/<int:account_id>/save", methods=["POST"])
+def save_google_labels(account_id):
+    data = request.get_json()
+    labels = data.get("labels", ["INBOX"])
+    db = get_db()
+    db.execute(
+        "UPDATE email_accounts SET folders_to_scan = ? WHERE id = ? AND account_type = 'google'",
+        (json.dumps(labels), account_id),
     )
     db.commit()
     db.close()

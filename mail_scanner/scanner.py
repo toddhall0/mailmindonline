@@ -1,5 +1,6 @@
 from database import get_db
 from mail_scanner.microsoft_scanner import scan_microsoft_account
+from mail_scanner.gmail_scanner import scan_gmail_account
 
 
 def process_email(email_id):
@@ -18,6 +19,8 @@ def scan_all_accounts():
     for account in accounts:
         if account["account_type"] == "microsoft":
             scan_microsoft_account(account["id"])
+        elif account["account_type"] == "google":
+            scan_gmail_account(account["id"])
 
     # Process any unprocessed emails
     db = get_db()
