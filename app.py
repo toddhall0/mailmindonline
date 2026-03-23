@@ -1,4 +1,5 @@
 import json
+import os
 
 from flask import Flask, render_template, flash, jsonify, request
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -14,6 +15,18 @@ from mail_scanner.scanner import scan_all_accounts
 app = Flask(__name__)
 app.secret_key = config.SECRET_KEY
 init_db()
+
+# ---------------------------------------------------------------------------
+# Background scheduler (runs in both gunicorn and dev mode)
+# ---------------------------------------------------------------------------
+scheduler = BackgroundScheduler()
+scheduler.add_job(
+    scan_all_accounts,
+    "interval",
+    minutes=config.SCAN_INTERVAL_MINUTES,
+    id="email_scan",
+)
+scheduler.start()
 
 # ---------------------------------------------------------------------------
 # Blueprints
@@ -91,17 +104,9 @@ def save_google_labels(account_id):
 
 
 # ---------------------------------------------------------------------------
-# Startup
+# Startup (local dev only — production uses gunicorn via Procfile)
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(
-        scan_all_accounts,
-        "interval",
-        minutes=config.SCAN_INTERVAL_MINUTES,
-        id="email_scan",
-    )
-    scheduler.start()
-
-    app.run(debug=True, port=8080)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(debug=True, port=port)

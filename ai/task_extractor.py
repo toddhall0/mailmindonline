@@ -128,22 +128,42 @@ def process_email(scanned_email_id):
     if action == "create" and result.get("has_action_item"):
         tags = ",".join(task_data.get("tags", []))
         source_ids = json.dumps([scanned_email_id])
-        cursor = db.execute(
-            """INSERT INTO tasks
-               (title, status, priority, due_date, tags, notes,
-                source_email_ids, thread_id)
-               VALUES (?, 'Open', ?, ?, ?, ?, ?, ?)""",
-            (
-                task_data.get("title", "Untitled task")[:80],
-                task_data.get("priority", "Medium"),
-                task_data.get("due_date"),
-                tags,
-                task_data.get("notes", ""),
-                source_ids,
-                email["thread_id"],
-            ),
-        )
-        task_id = cursor.lastrowid
+
+        from database import USE_POSTGRES
+        if USE_POSTGRES:
+            row = db.execute(
+                """INSERT INTO tasks
+                   (title, status, priority, due_date, tags, notes,
+                    source_email_ids, thread_id)
+                   VALUES (?, 'Open', ?, ?, ?, ?, ?, ?) RETURNING id""",
+                (
+                    task_data.get("title", "Untitled task")[:80],
+                    task_data.get("priority", "Medium"),
+                    task_data.get("due_date"),
+                    tags,
+                    task_data.get("notes", ""),
+                    source_ids,
+                    email["thread_id"],
+                ),
+            ).fetchone()
+            task_id = row["id"]
+        else:
+            cursor = db.execute(
+                """INSERT INTO tasks
+                   (title, status, priority, due_date, tags, notes,
+                    source_email_ids, thread_id)
+                   VALUES (?, 'Open', ?, ?, ?, ?, ?, ?)""",
+                (
+                    task_data.get("title", "Untitled task")[:80],
+                    task_data.get("priority", "Medium"),
+                    task_data.get("due_date"),
+                    tags,
+                    task_data.get("notes", ""),
+                    source_ids,
+                    email["thread_id"],
+                ),
+            )
+            task_id = cursor.lastrowid
 
     elif action == "update":
         existing_id = task_data.get("existing_task_id") or (

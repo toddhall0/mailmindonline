@@ -16,4 +16,4 @@ DATABASE_PATH = os.getenv("DATABASE_PATH", "mailmind.db")
 MICROSOFT_AUTHORITY = "https://login.microsoftonline.com/" + MICROSOFT_TENANT
 MICROSOFT_SCOPES = ["Mail.Read", "offline_access", "User.Read"]
 GOOGLE_SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
-REDIRECT_BASE = "http://localhost:8080"
+REDIRECT_BASE = os.getenv("REDIRECT_BASE", "http://localhost:8080")

@@ -1,4 +1,5 @@
 flask
+gunicorn
 anthropic
 msal
 google-auth
@@ -9,3 +10,4 @@ python-dotenv
 python-dateutil
 requests
 werkzeug
+psycopg2-binary
